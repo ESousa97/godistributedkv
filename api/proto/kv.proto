@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package kv;
+
+option go_package = "github.com/esousa97/godistributedkv/api/proto";
+
+// KeyValue defines the gRPC service for KV store operations.
+service KeyValue {
+  // Get retrieves a value by its key.
+  rpc Get(GetRequest) returns (GetResponse);
+  // Set stores a value associated with a key.
+  rpc Set(SetRequest) returns (SetResponse);
+  // Delete removes a key and its associated value.
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  string value = 1;
+  bool found = 2;
+}
+
+message SetRequest {
+  string key = 1;
+  string value = 2;
+}
+
+message SetResponse {
+  bool success = 1;
+}
+
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+}
