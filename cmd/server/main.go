@@ -34,7 +34,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	srv := server.NewServer(kvStore, cfg.Addr)
+	srv := server.NewServer(kvStore, clusterMgr, cfg.Addr)
 	pb.RegisterKeyValueServer(grpcServer, srv)
 
 	// Enable reflection for tools like grpcurl.

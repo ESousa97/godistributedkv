@@ -54,14 +54,15 @@ protoc --go_out=. --go_opt=paths=source_relative \
    go run cmd/server/main.go --addr :50052 --peers :50051,:50053
    ```
 
-The server will log health check status (HEALTHY/UNHEALTHY) for each configured peer every 5 seconds.
+The server will log health check status and leader election transitions (TERM updates, Leader elected).
 
 ## Implemented Features
 
-- **Set(key, value)**: Stores a key and its value.
-- **Get(key)**: Retrieves the value for a given key.
-- **Delete(key)**: Removes a key from the storage.
-- **Ping**: Health check endpoint for cluster members.
-- **Cluster Management**: Background health checks for a static list of peers.
+- **Set(key, value)**: Only allowed on the **Leader** node. Followers will return a `leader_hint`.
+- **Get(key)**: Retrieves the value for a given key from any node.
+- **Delete(key)**: Only allowed on the **Leader** node.
+- **Leader Election**: Automated election using terms and votes when the leader fails.
+- **Leader Redirection**: Followers return the address of the current leader for write operations.
+- **Heartbeats**: Leader maintains authority via periodic heartbeats.
 - **Thread-safety**: Protected via `sync.RWMutex`.
 - **gRPC Reflection**: Enabled to facilitate testing with tools like `grpcurl`.

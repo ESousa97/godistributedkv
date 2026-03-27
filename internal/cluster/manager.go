@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -11,101 +12,257 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type NodeState int
+
+const (
+	Follower NodeState = iota
+	Candidate
+	Leader
+)
+
 // Peer represents a remote node in the cluster.
 type Peer struct {
-	Addr    string
-	Client  pb.KeyValueClient
-	Conn    *grpc.ClientConn
-	Healthy bool
+	Addr   string
+	Client pb.KeyValueClient
+	Conn   *grpc.ClientConn
 }
 
-// Manager manages the cluster peers and their health status.
+// Manager manages the cluster peers and leader election.
 type Manager struct {
-	mu     sync.RWMutex
-	peers  map[string]*Peer
+	mu sync.RWMutex
+
+	// Node Info
 	nodeID string
+	peers  map[string]*Peer
+
+	// Raft-like State
+	state       NodeState
+	currentTerm int64
+	votedFor    string
+	leaderID    string
+
+	// Timers
+	electionTimer *time.Timer
 }
 
 // NewManager initializes a new cluster Manager.
 func NewManager(nodeID string, peerAddrs []string) *Manager {
 	m := &Manager{
-		peers:  make(map[string]*Peer),
-		nodeID: nodeID,
+		nodeID:      nodeID,
+		peers:       make(map[string]*Peer),
+		state:       Follower,
+		currentTerm: 0,
 	}
 
 	for _, addr := range peerAddrs {
 		m.peers[addr] = &Peer{
-			Addr:    addr,
-			Healthy: false,
+			Addr: addr,
 		}
 	}
 
 	return m
 }
 
-// Start initiates background health checks for all peers.
+// Start initiates the election timer and background processes.
 func (m *Manager) Start() {
+	m.mu.Lock()
+	m.resetElectionTimer()
+	m.mu.Unlock()
+}
+
+func (m *Manager) resetElectionTimer() {
+	if m.electionTimer != nil {
+		m.electionTimer.Stop()
+	}
+	// Randomized timeout between 150ms and 300ms
+	timeout := time.Duration(150+rand.Intn(150)) * time.Millisecond
+	m.electionTimer = time.AfterFunc(timeout, m.startElection)
+}
+
+func (m *Manager) startElection() {
+	m.mu.Lock()
+	m.state = Candidate
+	m.currentTerm++
+	m.votedFor = m.nodeID
+	m.leaderID = ""
+	term := m.currentTerm
+	nodeID := m.nodeID
+	m.resetElectionTimer()
+	log.Printf("[TERM %d] Node %s starting election", term, nodeID)
+	m.mu.Unlock()
+
+	votes := 1 // Vote for self
+	var voteMu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, p := range m.peers {
-		peer := p // Local copy for closure safety
-		go m.healthCheckLoop(peer)
+		wg.Add(1)
+		go func(peer *Peer) {
+			defer wg.Done()
+			m.ensureClient(peer)
+			if peer.Client == nil {
+				return
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+			defer cancel()
+
+			resp, err := peer.Client.RequestVote(ctx, &pb.VoteRequest{
+				Term:        term,
+				CandidateId: nodeID,
+			})
+
+			if err != nil {
+				return
+			}
+
+			if resp.VoteGranted {
+				voteMu.Lock()
+				votes++
+				voteMu.Unlock()
+			} else if resp.Term > term {
+				m.mu.Lock()
+				m.becomeFollower(resp.Term)
+				m.mu.Unlock()
+			}
+		}(p)
+	}
+
+	wg.Wait()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Check if still candidate and has majority
+	if m.state == Candidate && votes > (len(m.peers)+1)/2 {
+		m.becomeLeader()
 	}
 }
 
-func (m *Manager) healthCheckLoop(peer *Peer) {
-	ticker := time.NewTicker(5 * time.Second)
+func (m *Manager) becomeLeader() {
+	m.state = Leader
+	m.leaderID = m.nodeID
+	if m.electionTimer != nil {
+		m.electionTimer.Stop()
+	}
+	log.Printf("[TERM %d] Node %s became LEADER", m.currentTerm, m.nodeID)
+	go m.heartbeatLoop()
+}
+
+func (m *Manager) becomeFollower(term int64) {
+	log.Printf("[TERM %d] Node %s becoming Follower (Term update: %d)", m.currentTerm, m.nodeID, term)
+	m.state = Follower
+	m.currentTerm = term
+	m.votedFor = ""
+	m.resetElectionTimer()
+}
+
+func (m *Manager) heartbeatLoop() {
+	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 
-	// First ping attempt immediately
-	m.pingPeer(peer)
-
 	for {
+		m.mu.RLock()
+		if m.state != Leader {
+			m.mu.RUnlock()
+			return
+		}
+		term := m.currentTerm
+		nodeID := m.nodeID
+		m.mu.RUnlock()
+
+		for _, p := range m.peers {
+			go func(peer *Peer) {
+				m.ensureClient(peer)
+				if peer.Client == nil {
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+				defer cancel()
+				resp, err := peer.Client.Heartbeat(ctx, &pb.HeartbeatRequest{
+					Term:     term,
+					LeaderId: nodeID,
+				})
+				if err == nil && resp.Term > term {
+					m.mu.Lock()
+					m.becomeFollower(resp.Term)
+					m.mu.Unlock()
+				}
+			}(p)
+		}
 		<-ticker.C
-		m.pingPeer(peer)
 	}
 }
 
-func (m *Manager) pingPeer(peer *Peer) {
+func (m *Manager) ensureClient(peer *Peer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if peer.Conn == nil {
-		// Using grpc.Dial for better compatibility with older versions or WSL quirks
 		conn, err := grpc.NewClient(peer.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Printf("ERROR: Could not create gRPC client for %s: %v", peer.Addr, err)
 			return
 		}
 		peer.Conn = conn
 		peer.Client = pb.NewKeyValueClient(conn)
 	}
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+// gRPC Handler Implementations
 
-	resp, err := peer.Client.Ping(ctx, &pb.PingRequest{NodeId: m.nodeID})
-
+func (m *Manager) HandleRequestVote(req *pb.VoteRequest) *pb.VoteResponse {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if err != nil {
-		if peer.Healthy {
-			log.Printf("ALERT: Peer %s is now UNHEALTHY: %v", peer.Addr, err)
-		}
-		peer.Healthy = false
-		return
+	if req.Term > m.currentTerm {
+		m.becomeFollower(req.Term)
 	}
 
-	if !peer.Healthy {
-		log.Printf("OK: Peer %s is now HEALTHY (ID: %s)", peer.Addr, resp.GetNodeId())
+	granted := false
+	if req.Term == m.currentTerm && (m.votedFor == "" || m.votedFor == req.CandidateId) {
+		granted = true
+		m.votedFor = req.CandidateId
+		m.resetElectionTimer()
 	}
-	peer.Healthy = resp.GetHealthy()
+
+	return &pb.VoteResponse{
+		Term:        m.currentTerm,
+		VoteGranted: granted,
+	}
 }
 
-// GetPeers returns the current status of all peers.
-func (m *Manager) GetPeers() map[string]bool {
+func (m *Manager) HandleHeartbeat(req *pb.HeartbeatRequest) *pb.HeartbeatResponse {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if req.Term > m.currentTerm {
+		m.becomeFollower(req.Term)
+	}
+
+	success := false
+	if req.Term >= m.currentTerm {
+		success = true
+		m.state = Follower
+		m.currentTerm = req.Term
+		m.leaderID = req.LeaderId
+		m.resetElectionTimer()
+	}
+
+	return &pb.HeartbeatResponse{
+		Term:    m.currentTerm,
+		Success: success,
+	}
+}
+
+// External Queries
+
+func (m *Manager) IsLeader() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.state == Leader
+}
 
-	status := make(map[string]bool)
-	for addr, p := range m.peers {
-		status[addr] = p.Healthy
-	}
-	return status
+func (m *Manager) GetLeader() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.leaderID
 }

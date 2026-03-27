@@ -14,6 +14,10 @@ service KeyValue {
   rpc Delete(DeleteRequest) returns (DeleteResponse);
   // Ping is used for cluster health checks between nodes.
   rpc Ping(PingRequest) returns (PingResponse);
+  // RequestVote is used for leader election.
+  rpc RequestVote(VoteRequest) returns (VoteResponse);
+  // Heartbeat is used by the leader to maintain authority.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 }
 
 message GetRequest {
@@ -32,6 +36,7 @@ message SetRequest {
 
 message SetResponse {
   bool success = 1;
+  string leader_hint = 2;
 }
 
 message DeleteRequest {
@@ -49,4 +54,24 @@ message PingRequest {
 message PingResponse {
   string node_id = 1;
   bool healthy = 2;
+}
+
+message VoteRequest {
+  int64 term = 1;
+  string candidate_id = 2;
+}
+
+message VoteResponse {
+  int64 term = 1;
+  bool vote_granted = 2;
+}
+
+message HeartbeatRequest {
+  int64 term = 1;
+  string leader_id = 2;
+}
+
+message HeartbeatResponse {
+  int64 term = 1;
+  bool success = 2;
 }

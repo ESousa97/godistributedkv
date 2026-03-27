@@ -19,10 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KeyValue_Get_FullMethodName    = "/kv.KeyValue/Get"
-	KeyValue_Set_FullMethodName    = "/kv.KeyValue/Set"
-	KeyValue_Delete_FullMethodName = "/kv.KeyValue/Delete"
-	KeyValue_Ping_FullMethodName   = "/kv.KeyValue/Ping"
+	KeyValue_Get_FullMethodName         = "/kv.KeyValue/Get"
+	KeyValue_Set_FullMethodName         = "/kv.KeyValue/Set"
+	KeyValue_Delete_FullMethodName      = "/kv.KeyValue/Delete"
+	KeyValue_Ping_FullMethodName        = "/kv.KeyValue/Ping"
+	KeyValue_RequestVote_FullMethodName = "/kv.KeyValue/RequestVote"
+	KeyValue_Heartbeat_FullMethodName   = "/kv.KeyValue/Heartbeat"
 )
 
 // KeyValueClient is the client API for KeyValue service.
@@ -39,6 +41,10 @@ type KeyValueClient interface {
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	// Ping is used for cluster health checks between nodes.
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+	// RequestVote is used for leader election.
+	RequestVote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteResponse, error)
+	// Heartbeat is used by the leader to maintain authority.
+	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
 }
 
 type keyValueClient struct {
@@ -89,6 +95,26 @@ func (c *keyValueClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *keyValueClient) RequestVote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VoteResponse)
+	err := c.cc.Invoke(ctx, KeyValue_RequestVote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *keyValueClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HeartbeatResponse)
+	err := c.cc.Invoke(ctx, KeyValue_Heartbeat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KeyValueServer is the server API for KeyValue service.
 // All implementations must embed UnimplementedKeyValueServer
 // for forward compatibility.
@@ -103,6 +129,10 @@ type KeyValueServer interface {
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	// Ping is used for cluster health checks between nodes.
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
+	// RequestVote is used for leader election.
+	RequestVote(context.Context, *VoteRequest) (*VoteResponse, error)
+	// Heartbeat is used by the leader to maintain authority.
+	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
 	mustEmbedUnimplementedKeyValueServer()
 }
 
@@ -124,6 +154,12 @@ func (UnimplementedKeyValueServer) Delete(context.Context, *DeleteRequest) (*Del
 }
 func (UnimplementedKeyValueServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedKeyValueServer) RequestVote(context.Context, *VoteRequest) (*VoteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestVote not implemented")
+}
+func (UnimplementedKeyValueServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
 }
 func (UnimplementedKeyValueServer) mustEmbedUnimplementedKeyValueServer() {}
 func (UnimplementedKeyValueServer) testEmbeddedByValue()                  {}
@@ -218,6 +254,42 @@ func _KeyValue_Ping_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KeyValue_RequestVote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeyValueServer).RequestVote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KeyValue_RequestVote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeyValueServer).RequestVote(ctx, req.(*VoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KeyValue_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HeartbeatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeyValueServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KeyValue_Heartbeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeyValueServer).Heartbeat(ctx, req.(*HeartbeatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // KeyValue_ServiceDesc is the grpc.ServiceDesc for KeyValue service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +312,14 @@ var KeyValue_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _KeyValue_Ping_Handler,
+		},
+		{
+			MethodName: "RequestVote",
+			Handler:    _KeyValue_RequestVote_Handler,
+		},
+		{
+			MethodName: "Heartbeat",
+			Handler:    _KeyValue_Heartbeat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

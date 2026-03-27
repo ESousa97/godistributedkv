@@ -4,21 +4,24 @@ import (
 	"context"
 
 	pb "github.com/esousa97/godistributedkv/api/proto"
+	"github.com/esousa97/godistributedkv/internal/cluster"
 	"github.com/esousa97/godistributedkv/internal/storage"
 )
 
 // Server implements the gRPC KeyValue service.
 type Server struct {
 	pb.UnimplementedKeyValueServer
-	store  *storage.Store
-	nodeID string
+	store   *storage.Store
+	cluster *cluster.Manager
+	nodeID  string
 }
 
 // NewServer creates and returns a new Server instance.
-func NewServer(store *storage.Store, nodeID string) *Server {
+func NewServer(store *storage.Store, cluster *cluster.Manager, nodeID string) *Server {
 	return &Server{
-		store:  store,
-		nodeID: nodeID,
+		store:   store,
+		cluster: cluster,
+		nodeID:  nodeID,
 	}
 }
 
@@ -31,8 +34,15 @@ func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 	}, nil
 }
 
-// Set handles the gRPC Set request.
+// Set handles the gRPC Set request. Only the leader can perform Set.
 func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
+	if !s.cluster.IsLeader() {
+		return &pb.SetResponse{
+			Success:    false,
+			LeaderHint: s.cluster.GetLeader(),
+		}, nil
+	}
+
 	s.store.Set(req.GetKey(), req.GetValue())
 	return &pb.SetResponse{
 		Success: true,
@@ -41,6 +51,12 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 
 // Delete handles the gRPC Delete request.
 func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
+	if !s.cluster.IsLeader() {
+		return &pb.DeleteResponse{
+			Success: false,
+		}, nil
+	}
+
 	s.store.Delete(req.GetKey())
 	return &pb.DeleteResponse{
 		Success: true,
@@ -53,4 +69,14 @@ func (s *Server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingRespons
 		NodeId:  s.nodeID,
 		Healthy: true,
 	}, nil
+}
+
+// RequestVote handles election votes.
+func (s *Server) RequestVote(ctx context.Context, req *pb.VoteRequest) (*pb.VoteResponse, error) {
+	return s.cluster.HandleRequestVote(req), nil
+}
+
+// Heartbeat handles leader heartbeats.
+func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	return s.cluster.HandleHeartbeat(req), nil
 }
