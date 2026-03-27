@@ -10,13 +10,15 @@ import (
 // Server implements the gRPC KeyValue service.
 type Server struct {
 	pb.UnimplementedKeyValueServer
-	store *storage.Store
+	store  *storage.Store
+	nodeID string
 }
 
 // NewServer creates and returns a new Server instance.
-func NewServer(store *storage.Store) *Server {
+func NewServer(store *storage.Store, nodeID string) *Server {
 	return &Server{
-		store: store,
+		store:  store,
+		nodeID: nodeID,
 	}
 }
 
@@ -42,5 +44,13 @@ func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 	s.store.Delete(req.GetKey())
 	return &pb.DeleteResponse{
 		Success: true,
+	}, nil
+}
+
+// Ping handles the gRPC Ping request for cluster health checks.
+func (s *Server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
+	return &pb.PingResponse{
+		NodeId:  s.nodeID,
+		Healthy: true,
 	}, nil
 }

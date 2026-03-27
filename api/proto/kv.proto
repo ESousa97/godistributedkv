@@ -12,6 +12,8 @@ service KeyValue {
   rpc Set(SetRequest) returns (SetResponse);
   // Delete removes a key and its associated value.
   rpc Delete(DeleteRequest) returns (DeleteResponse);
+  // Ping is used for cluster health checks between nodes.
+  rpc Ping(PingRequest) returns (PingResponse);
 }
 
 message GetRequest {
@@ -38,4 +40,13 @@ message DeleteRequest {
 
 message DeleteResponse {
   bool success = 1;
+}
+
+message PingRequest {
+  string node_id = 1;
+}
+
+message PingResponse {
+  string node_id = 1;
+  bool healthy = 2;
 }
