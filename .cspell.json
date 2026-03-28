@@ -1,0 +1,27 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "golangci",
+    "gosec",
+    "securego",
+    "errcheck",
+    "gosimple",
+    "govet",
+    "ineffassign",
+    "staticcheck",
+    "gofmt",
+    "protoc",
+    "misspell",
+    "revive",
+    "godistributedkv",
+    "alpined",
+    "grpcurl"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "vendor",
+    "*.pb.go",
+    ".git"
+  ]
+}
