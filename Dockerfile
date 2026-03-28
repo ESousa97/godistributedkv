@@ -15,7 +15,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o godistributedkv ./cmd/server/main.go
 
 # Final stage
-FROM alpine:latest
+FROM alpine:3.21
 
 WORKDIR /root/
 
