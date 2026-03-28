@@ -1,4 +1,4 @@
-// Package server implements the gRPC communication layer for the distributed 
+// Package server implements the gRPC communication layer for the distributed
 // key-value store. It handles client requests and internal cluster management
 // protocols.
 package server
@@ -42,7 +42,7 @@ func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 }
 
 // Set handles the gRPC Set request. Only the current cluster leader is permitted
-// to perform write operations. If the node is not a leader, it returns a 
+// to perform write operations. If the node is not a leader, it returns a
 // [pb.SetResponse] with a hint for the client to redirect to the correct leader.
 func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
 	if !s.cluster.IsLeader() {
@@ -68,7 +68,7 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 }
 
 // Delete handles the gRPC Delete request for removing a key from the cluster.
-// Similar to [Set], it requires the node to be the current leader and 
+// Similar to [Set], it requires the node to be the current leader and
 // ensures quorum replication before local execution.
 func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
 	if !s.cluster.IsLeader() {

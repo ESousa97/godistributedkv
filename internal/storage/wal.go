@@ -13,11 +13,11 @@ import (
 // It serializes to JSON for persistence on disk.
 type LogEntry struct {
 	// Key is the unique identifier for the entry.
-	Key      string `json:"key"`
+	Key string `json:"key"`
 	// Value is the data associated with the key. Omitted for delete operations.
-	Value    string `json:"value,omitempty"`
+	Value string `json:"value,omitempty"`
 	// IsDelete indicates if this entry represents a key deletion.
-	IsDelete bool   `json:"is_delete"`
+	IsDelete bool `json:"is_delete"`
 }
 
 // WAL (Write-Ahead Log) handles sequential log writing and recovery.

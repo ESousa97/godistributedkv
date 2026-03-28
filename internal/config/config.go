@@ -9,9 +9,9 @@ import (
 // Config holds the application configuration parameters.
 type Config struct {
 	// Addr is the network address (host:port) where the server will listen.
-	Addr    string
+	Addr string
 	// Peers is a list of network addresses for other nodes in the cluster.
-	Peers   []string
+	Peers []string
 	// WALPath is the filesystem path to the Write-Ahead Log file.
 	WALPath string
 }

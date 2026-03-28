@@ -1,5 +1,5 @@
 // Package main provides the entry point for the distributed key-value store server.
-// It coordinates the initialization of storage, WAL persistence, and cluster 
+// It coordinates the initialization of storage, WAL persistence, and cluster
 // management, then starts the gRPC server and enables reflection for debugging.
 package main
 
@@ -28,7 +28,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("CRITICAL: failed to initialize WAL: %v", err)
 	}
-	defer wal.Close()
+	defer func() {
+		if err := wal.Close(); err != nil {
+			log.Printf("ERROR: failed to close WAL: %v", err)
+		}
+	}()
 
 	// Initialize in-memory storage with WAL.
 	kvStore := storage.NewStore(wal)

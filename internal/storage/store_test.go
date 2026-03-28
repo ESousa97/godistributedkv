@@ -9,7 +9,7 @@ func TestStore_SetAndGet(t *testing.T) {
 	key := "test-key"
 	value := "test-value"
 
-	s.Set(key, value)
+	_ = s.Set(key, value)
 
 	got, found := s.Get(key)
 	if !found {
@@ -35,8 +35,8 @@ func TestStore_Delete(t *testing.T) {
 	key := "to-delete"
 	value := "some-value"
 
-	s.Set(key, value)
-	s.Delete(key)
+	_ = s.Set(key, value)
+	_ = s.Delete(key)
 
 	_, found := s.Get(key)
 	if found {
@@ -52,7 +52,7 @@ func TestStore_ConcurrentAccess(t *testing.T) {
 	done := make(chan bool)
 	go func() {
 		for i := 0; i < iterations; i++ {
-			s.Set("key", "value")
+			_ = s.Set("key", "value")
 		}
 		done <- true
 	}()

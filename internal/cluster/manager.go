@@ -33,11 +33,11 @@ const (
 // It maintains the network address and gRPC client connection.
 type Peer struct {
 	// Addr is the network address (host:port) of the remote peer.
-	Addr   string
+	Addr string
 	// Client is the gRPC client for the KeyValue service.
 	Client pb.KeyValueClient
 	// Conn is the underlying gRPC client connection.
-	Conn   *grpc.ClientConn
+	Conn *grpc.ClientConn
 }
 
 // Manager coordinates cluster-wide operations such as leader election and replication.
