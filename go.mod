@@ -1,6 +1,6 @@
 module github.com/esousa97/godistributedkv
 
-go 1.21
+go 1.24
 
 require (
 	google.golang.org/grpc v1.79.3
