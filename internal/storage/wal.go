@@ -33,11 +33,14 @@ type WAL struct {
 func NewWAL(path string) (*WAL, error) {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	// Directory permissions 0750: owner rwx, group r-x, others none.
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create WAL directory: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+	// File permissions 0600: owner rw-, group none, others none.
+	// #nosec G304: path is provided via trusted server configuration.
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open WAL file: %w", err)
 	}

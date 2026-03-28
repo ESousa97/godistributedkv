@@ -31,7 +31,7 @@ jobs:
       - name: Run Gosec
         uses: securego/gosec@master
         with:
-          args: ./...
+          args: -exclude-dir=api/proto ./...
 
   test:
     name: Test & Build

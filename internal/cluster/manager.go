@@ -6,9 +6,10 @@
 package cluster
 
 import (
+	"crypto/rand"
 	"context"
 	"log"
-	"math/rand"
+	"math/big"
 	"sync"
 	"time"
 
@@ -90,7 +91,16 @@ func (m *Manager) resetElectionTimer() {
 		m.electionTimer.Stop()
 	}
 	// Randomized timeout between 150ms and 300ms to reduce split-vote scenarios.
-	timeout := time.Duration(150+rand.Intn(150)) * time.Millisecond
+	// Use crypto/rand to comply with professional security standards.
+	maxJitter := big.NewInt(150)
+	jitter, err := rand.Int(rand.Reader, maxJitter)
+	if err != nil {
+		// Fallback to fixed 300ms if random generator fails (extremely unlikely)
+		log.Printf("CRITICAL: crypto/rand failed: %v", err)
+		jitter = big.NewInt(150)
+	}
+
+	timeout := time.Duration(150+jitter.Int64()) * time.Millisecond
 	m.electionTimer = time.AfterFunc(timeout, m.startElection)
 }
 

@@ -16,7 +16,9 @@
     "revive",
     "godistributedkv",
     "alpined",
-    "grpcurl"
+    "grpcurl",
+    "esousa",
+    "nosec"
   ],
   "ignorePaths": [
     "node_modules",
