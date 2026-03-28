@@ -29,8 +29,8 @@ func main() {
 		log.Fatalf("CRITICAL: failed to initialize WAL: %v", err)
 	}
 	defer func() {
-		if err := wal.Close(); err != nil {
-			log.Printf("ERROR: failed to close WAL: %v", err)
+		if cErr := wal.Close(); cErr != nil {
+			log.Printf("ERROR: failed to close WAL: %v", cErr)
 		}
 	}()
 
@@ -38,8 +38,8 @@ func main() {
 	kvStore := storage.NewStore(wal)
 
 	// Recover state from WAL.
-	if err := kvStore.Recover(); err != nil {
-		log.Printf("WARNING: failed to recover from WAL: %v", err)
+	if rErr := kvStore.Recover(); rErr != nil {
+		log.Printf("WARNING: failed to recover from WAL: %v", rErr)
 	} else {
 		log.Println("State recovered from WAL successfully")
 	}
