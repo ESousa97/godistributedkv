@@ -613,6 +613,126 @@ func (x *HeartbeatResponse) GetSuccess() bool {
 	return false
 }
 
+type ReplicateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Term          int64                  `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
+	LeaderId      string                 `protobuf:"bytes,2,opt,name=leader_id,json=leaderId,proto3" json:"leader_id,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicateRequest) Reset() {
+	*x = ReplicateRequest{}
+	mi := &file_api_proto_kv_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicateRequest) ProtoMessage() {}
+
+func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_kv_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicateRequest.ProtoReflect.Descriptor instead.
+func (*ReplicateRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_kv_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ReplicateRequest) GetTerm() int64 {
+	if x != nil {
+		return x.Term
+	}
+	return 0
+}
+
+func (x *ReplicateRequest) GetLeaderId() string {
+	if x != nil {
+		return x.LeaderId
+	}
+	return ""
+}
+
+func (x *ReplicateRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ReplicateRequest) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type ReplicateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Term          int64                  `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicateResponse) Reset() {
+	*x = ReplicateResponse{}
+	mi := &file_api_proto_kv_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicateResponse) ProtoMessage() {}
+
+func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_kv_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicateResponse.ProtoReflect.Descriptor instead.
+func (*ReplicateResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_kv_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ReplicateResponse) GetTerm() int64 {
+	if x != nil {
+		return x.Term
+	}
+	return 0
+}
+
+func (x *ReplicateResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_api_proto_kv_proto protoreflect.FileDescriptor
 
 const file_api_proto_kv_proto_rawDesc = "" +
@@ -652,14 +772,23 @@ const file_api_proto_kv_proto_rawDesc = "" +
 	"\tleader_id\x18\x02 \x01(\tR\bleaderId\"A\n" +
 	"\x11HeartbeatResponse\x12\x12\n" +
 	"\x04term\x18\x01 \x01(\x03R\x04term\x12\x18\n" +
-	"\asuccess\x18\x02 \x01(\bR\asuccess2\xa2\x02\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\"k\n" +
+	"\x10ReplicateRequest\x12\x12\n" +
+	"\x04term\x18\x01 \x01(\x03R\x04term\x12\x1b\n" +
+	"\tleader_id\x18\x02 \x01(\tR\bleaderId\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\"A\n" +
+	"\x11ReplicateResponse\x12\x12\n" +
+	"\x04term\x18\x01 \x01(\x03R\x04term\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess2\xdf\x02\n" +
 	"\bKeyValue\x12&\n" +
 	"\x03Get\x12\x0e.kv.GetRequest\x1a\x0f.kv.GetResponse\x12&\n" +
 	"\x03Set\x12\x0e.kv.SetRequest\x1a\x0f.kv.SetResponse\x12/\n" +
 	"\x06Delete\x12\x11.kv.DeleteRequest\x1a\x12.kv.DeleteResponse\x12)\n" +
 	"\x04Ping\x12\x0f.kv.PingRequest\x1a\x10.kv.PingResponse\x120\n" +
 	"\vRequestVote\x12\x0f.kv.VoteRequest\x1a\x10.kv.VoteResponse\x128\n" +
-	"\tHeartbeat\x12\x14.kv.HeartbeatRequest\x1a\x15.kv.HeartbeatResponseB/Z-github.com/esousa97/godistributedkv/api/protob\x06proto3"
+	"\tHeartbeat\x12\x14.kv.HeartbeatRequest\x1a\x15.kv.HeartbeatResponse\x12;\n" +
+	"\fReplicateSet\x12\x14.kv.ReplicateRequest\x1a\x15.kv.ReplicateResponseB/Z-github.com/esousa97/godistributedkv/api/protob\x06proto3"
 
 var (
 	file_api_proto_kv_proto_rawDescOnce sync.Once
@@ -673,7 +802,7 @@ func file_api_proto_kv_proto_rawDescGZIP() []byte {
 	return file_api_proto_kv_proto_rawDescData
 }
 
-var file_api_proto_kv_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_api_proto_kv_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_api_proto_kv_proto_goTypes = []any{
 	(*GetRequest)(nil),        // 0: kv.GetRequest
 	(*GetResponse)(nil),       // 1: kv.GetResponse
@@ -687,6 +816,8 @@ var file_api_proto_kv_proto_goTypes = []any{
 	(*VoteResponse)(nil),      // 9: kv.VoteResponse
 	(*HeartbeatRequest)(nil),  // 10: kv.HeartbeatRequest
 	(*HeartbeatResponse)(nil), // 11: kv.HeartbeatResponse
+	(*ReplicateRequest)(nil),  // 12: kv.ReplicateRequest
+	(*ReplicateResponse)(nil), // 13: kv.ReplicateResponse
 }
 var file_api_proto_kv_proto_depIdxs = []int32{
 	0,  // 0: kv.KeyValue.Get:input_type -> kv.GetRequest
@@ -695,14 +826,16 @@ var file_api_proto_kv_proto_depIdxs = []int32{
 	6,  // 3: kv.KeyValue.Ping:input_type -> kv.PingRequest
 	8,  // 4: kv.KeyValue.RequestVote:input_type -> kv.VoteRequest
 	10, // 5: kv.KeyValue.Heartbeat:input_type -> kv.HeartbeatRequest
-	1,  // 6: kv.KeyValue.Get:output_type -> kv.GetResponse
-	3,  // 7: kv.KeyValue.Set:output_type -> kv.SetResponse
-	5,  // 8: kv.KeyValue.Delete:output_type -> kv.DeleteResponse
-	7,  // 9: kv.KeyValue.Ping:output_type -> kv.PingResponse
-	9,  // 10: kv.KeyValue.RequestVote:output_type -> kv.VoteResponse
-	11, // 11: kv.KeyValue.Heartbeat:output_type -> kv.HeartbeatResponse
-	6,  // [6:12] is the sub-list for method output_type
-	0,  // [0:6] is the sub-list for method input_type
+	12, // 6: kv.KeyValue.ReplicateSet:input_type -> kv.ReplicateRequest
+	1,  // 7: kv.KeyValue.Get:output_type -> kv.GetResponse
+	3,  // 8: kv.KeyValue.Set:output_type -> kv.SetResponse
+	5,  // 9: kv.KeyValue.Delete:output_type -> kv.DeleteResponse
+	7,  // 10: kv.KeyValue.Ping:output_type -> kv.PingResponse
+	9,  // 11: kv.KeyValue.RequestVote:output_type -> kv.VoteResponse
+	11, // 12: kv.KeyValue.Heartbeat:output_type -> kv.HeartbeatResponse
+	13, // 13: kv.KeyValue.ReplicateSet:output_type -> kv.ReplicateResponse
+	7,  // [7:14] is the sub-list for method output_type
+	0,  // [0:7] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -719,7 +852,7 @@ func file_api_proto_kv_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_kv_proto_rawDesc), len(file_api_proto_kv_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -266,3 +266,75 @@ func (m *Manager) GetLeader() string {
 	defer m.mu.RUnlock()
 	return m.leaderID
 }
+
+// Replicate sends the Set operation to all peers and waits for a quorum.
+func (m *Manager) Replicate(ctx context.Context, key, value string) bool {
+	m.mu.RLock()
+	if m.state != Leader {
+		m.mu.RUnlock()
+		return false
+	}
+	term := m.currentTerm
+	nodeID := m.nodeID
+	peers := make([]*Peer, 0, len(m.peers))
+	for _, p := range m.peers {
+		peers = append(peers, p)
+	}
+	m.mu.RUnlock()
+
+	successCount := 1 // Leader itself
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, p := range peers {
+		wg.Add(1)
+		go func(peer *Peer) {
+			defer wg.Done()
+			m.ensureClient(peer)
+			if peer.Client == nil {
+				return
+			}
+
+			// Individual peer timeout
+			peerCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+			defer cancel()
+
+			resp, err := peer.Client.ReplicateSet(peerCtx, &pb.ReplicateRequest{
+				Term:     term,
+				LeaderId: nodeID,
+				Key:      key,
+				Value:    value,
+			})
+
+			if err == nil && resp.Success {
+				mu.Lock()
+				successCount++
+				mu.Unlock()
+			}
+		}(p)
+	}
+
+	wg.Wait()
+
+	totalNodes := len(peers) + 1
+	majority := (totalNodes / 2) + 1
+	return successCount >= majority
+}
+
+func (m *Manager) HandleReplicateSet(req *pb.ReplicateRequest) (bool, int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if req.Term < m.currentTerm {
+		return false, m.currentTerm
+	}
+
+	if req.Term > m.currentTerm {
+		m.becomeFollower(req.Term)
+	}
+
+	m.leaderID = req.LeaderId
+	m.resetElectionTimer()
+
+	return true, m.currentTerm
+}

@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KeyValue_Get_FullMethodName         = "/kv.KeyValue/Get"
-	KeyValue_Set_FullMethodName         = "/kv.KeyValue/Set"
-	KeyValue_Delete_FullMethodName      = "/kv.KeyValue/Delete"
-	KeyValue_Ping_FullMethodName        = "/kv.KeyValue/Ping"
-	KeyValue_RequestVote_FullMethodName = "/kv.KeyValue/RequestVote"
-	KeyValue_Heartbeat_FullMethodName   = "/kv.KeyValue/Heartbeat"
+	KeyValue_Get_FullMethodName          = "/kv.KeyValue/Get"
+	KeyValue_Set_FullMethodName          = "/kv.KeyValue/Set"
+	KeyValue_Delete_FullMethodName       = "/kv.KeyValue/Delete"
+	KeyValue_Ping_FullMethodName         = "/kv.KeyValue/Ping"
+	KeyValue_RequestVote_FullMethodName  = "/kv.KeyValue/RequestVote"
+	KeyValue_Heartbeat_FullMethodName    = "/kv.KeyValue/Heartbeat"
+	KeyValue_ReplicateSet_FullMethodName = "/kv.KeyValue/ReplicateSet"
 )
 
 // KeyValueClient is the client API for KeyValue service.
@@ -45,6 +46,8 @@ type KeyValueClient interface {
 	RequestVote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteResponse, error)
 	// Heartbeat is used by the leader to maintain authority.
 	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
+	// ReplicateSet is used by the leader to propagate data to followers.
+	ReplicateSet(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error)
 }
 
 type keyValueClient struct {
@@ -115,6 +118,16 @@ func (c *keyValueClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, op
 	return out, nil
 }
 
+func (c *keyValueClient) ReplicateSet(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReplicateResponse)
+	err := c.cc.Invoke(ctx, KeyValue_ReplicateSet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KeyValueServer is the server API for KeyValue service.
 // All implementations must embed UnimplementedKeyValueServer
 // for forward compatibility.
@@ -133,6 +146,8 @@ type KeyValueServer interface {
 	RequestVote(context.Context, *VoteRequest) (*VoteResponse, error)
 	// Heartbeat is used by the leader to maintain authority.
 	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
+	// ReplicateSet is used by the leader to propagate data to followers.
+	ReplicateSet(context.Context, *ReplicateRequest) (*ReplicateResponse, error)
 	mustEmbedUnimplementedKeyValueServer()
 }
 
@@ -160,6 +175,9 @@ func (UnimplementedKeyValueServer) RequestVote(context.Context, *VoteRequest) (*
 }
 func (UnimplementedKeyValueServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedKeyValueServer) ReplicateSet(context.Context, *ReplicateRequest) (*ReplicateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReplicateSet not implemented")
 }
 func (UnimplementedKeyValueServer) mustEmbedUnimplementedKeyValueServer() {}
 func (UnimplementedKeyValueServer) testEmbeddedByValue()                  {}
@@ -290,6 +308,24 @@ func _KeyValue_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KeyValue_ReplicateSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplicateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeyValueServer).ReplicateSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KeyValue_ReplicateSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeyValueServer).ReplicateSet(ctx, req.(*ReplicateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // KeyValue_ServiceDesc is the grpc.ServiceDesc for KeyValue service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,6 +356,10 @@ var KeyValue_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Heartbeat",
 			Handler:    _KeyValue_Heartbeat_Handler,
+		},
+		{
+			MethodName: "ReplicateSet",
+			Handler:    _KeyValue_ReplicateSet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

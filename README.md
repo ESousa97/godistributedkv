@@ -58,9 +58,10 @@ The server will log health check status and leader election transitions (TERM up
 
 ## Implemented Features
 
-- **Set(key, value)**: Only allowed on the **Leader** node. Followers will return a `leader_hint`.
+- **Set(key, value)**: Only allowed on the **Leader** node. Propagated to followers via quorum.
 - **Get(key)**: Retrieves the value for a given key from any node.
-- **Delete(key)**: Only allowed on the **Leader** node.
+- **Delete(key)**: Only allowed on the **Leader** node. Propagated via quorum.
+- **Majority Consensus Replication (Quorum)**: Operations are only committed after at least N/2 + 1 nodes acknowledge the update.
 - **Leader Election**: Automated election using terms and votes when the leader fails.
 - **Leader Redirection**: Followers return the address of the current leader for write operations.
 - **Heartbeats**: Leader maintains authority via periodic heartbeats.

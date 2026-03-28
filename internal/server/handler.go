@@ -43,6 +43,13 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 		}, nil
 	}
 
+	// Replicate to quorum before applying locally
+	if !s.cluster.Replicate(ctx, req.GetKey(), req.GetValue()) {
+		return &pb.SetResponse{
+			Success: false,
+		}, nil
+	}
+
 	s.store.Set(req.GetKey(), req.GetValue())
 	return &pb.SetResponse{
 		Success: true,
@@ -52,6 +59,14 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 // Delete handles the gRPC Delete request.
 func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
 	if !s.cluster.IsLeader() {
+		return &pb.DeleteResponse{
+			Success: false,
+		}, nil
+	}
+
+	// For simplicity, we also replicate Deletes via ReplicateSet with empty value
+	// in a real system, you'd have a ReplicateDelete
+	if !s.cluster.Replicate(ctx, req.GetKey(), "") {
 		return &pb.DeleteResponse{
 			Success: false,
 		}, nil
@@ -79,4 +94,20 @@ func (s *Server) RequestVote(ctx context.Context, req *pb.VoteRequest) (*pb.Vote
 // Heartbeat handles leader heartbeats.
 func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	return s.cluster.HandleHeartbeat(req), nil
+}
+
+// ReplicateSet handles data replication requests from the leader.
+func (s *Server) ReplicateSet(ctx context.Context, req *pb.ReplicateRequest) (*pb.ReplicateResponse, error) {
+	success, term := s.cluster.HandleReplicateSet(req)
+	if success {
+		if req.GetValue() == "" {
+			s.store.Delete(req.GetKey())
+		} else {
+			s.store.Set(req.GetKey(), req.GetValue())
+		}
+	}
+	return &pb.ReplicateResponse{
+		Term:    term,
+		Success: success,
+	}, nil
 }

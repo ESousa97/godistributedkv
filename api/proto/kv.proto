@@ -18,6 +18,8 @@ service KeyValue {
   rpc RequestVote(VoteRequest) returns (VoteResponse);
   // Heartbeat is used by the leader to maintain authority.
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  // ReplicateSet is used by the leader to propagate data to followers.
+  rpc ReplicateSet(ReplicateRequest) returns (ReplicateResponse);
 }
 
 message GetRequest {
@@ -72,6 +74,18 @@ message HeartbeatRequest {
 }
 
 message HeartbeatResponse {
+  int64 term = 1;
+  bool success = 2;
+}
+
+message ReplicateRequest {
+  int64 term = 1;
+  string leader_id = 2;
+  string key = 3;
+  string value = 4;
+}
+
+message ReplicateResponse {
   int64 term = 1;
   bool success = 2;
 }
