@@ -1,69 +1,125 @@
-# godistributedkv
+<div align="center">
+  <h1>Go Distributed KV</h1>
+  <p>A distributed, modular, and resilient Key-Value store using gRPC for communication and consensus algorithms for data replication.</p>
 
-A basic distributed Key-Value Store written in Go, using gRPC for external communication and thread-safe in-memory storage.
+  <img src="assets/github-go.png" alt="Go Distributed KV Banner" width="600px">
 
-## Project Structure
+  <br>
 
-- `api/proto/`: Contains the gRPC contract definition (`kv.proto`).
-- `cmd/server/`: Application entry point.
-- `internal/server/`: gRPC handler implementation.
-- `internal/storage/`: Thread-safe in-memory storage logic.
+  ![CI](https://github.com/esousa97/godistributedkv/actions/workflows/go.yml/badge.svg)
+  [![Go Report Card](https://goreportcard.com/badge/github.com/esousa97/godistributedkv?v=2)](https://goreportcard.com/report/github.com/esousa97/godistributedkv)
+  [![CodeFactor](https://www.codefactor.io/repository/github/esousa97/godistributedkv/badge)](https://www.codefactor.io/repository/github/esousa97/godistributedkv)
+  ![Go Reference](https://pkg.go.dev/badge/github.com/esousa97/godistributedkv.svg)
+  ![License](https://img.shields.io/github/license/esousa97/godistributedkv)
+  ![Go Version](https://img.shields.io/github/go-mod/go-version/esousa97/godistributedkv)
+  ![Last Commit](https://img.shields.io/github/last-commit/esousa97/godistributedkv)
+</div>
 
-## Prerequisites
+---
 
-1. **Go 1.21+**
-2. **Protocol Buffers Compiler (protoc)**
-3. **Go gRPC Plugins**:
-   ```bash
-   go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-   go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-   ```
+**godistributedkv** is a distributed storage engine designed for high availability and consistency. It implements quorum-based replication (majority), automatic leader election, and persistence via Write-Ahead Log (WAL), ensuring data is safely replicated across a cluster of nodes.
 
-## Generating gRPC Code
+## Development Roadmap
 
-To generate Go files from the `.proto` definition, run:
+- [x] **Phase 1: The Core (In-Memory KV Store)**
+  - **Objective:** Create the basic data structure and ensure thread safety.
+  - **What was done:** Implementation of a struct encapsulating a `map[string]string` with `sync.RWMutex`, providing `Get`, `Set`, and `Delete` methods, alongside a basic gRPC server.
+
+- [x] **Phase 2: Clustering (Discovery and Networking)**
+  - **Objective:** Enable multiple nodes to discover and communicate with each other via gRPC.
+  - **What was done:** Peer list management via configuration, inter-node gRPC communication, and health checks using `Ping`.
+
+- [x] **Phase 3: Simplified Consensus (Leader and Election)**
+  - **Objective:** Determine which node coordinates the cluster to avoid write conflicts.
+  - **What was done:** Implementation of a Raft-inspired election algorithm (Terms, Votes, Heartbeats). Only the leader accepts `Set` operations, with follower redirection.
+
+- [x] **Phase 4: Log Replication**
+  - **Objective:** Ensure all followers replicate the data saved by the leader.
+  - **What was done:** Replication of `Set` operations via gRPC with quorum confirmation (N/2 + 1) before local application and client response.
+
+- [x] **Phase 5: Persistence and Recovery (WAL)**
+  - **Objective:** Ensure data durability in case of failure or restart.
+  - **What was done:** Implementation of a persistent Write-Ahead Log (WAL). Automatic state reconstruction at boot and orchestration via Docker Compose for fault tolerance testing.
+
+## Quick Start
+
+### Prerequisites
+
+- **Go 1.24+**
+- **Protocol Buffers Compiler (protoc)**
+- **gRPC Plugins for Go**
+
+### Installation
 
 ```bash
-protoc --go_out=. --go_opt=paths=source_relative \
-    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    api/proto/kv.proto
+git clone https://github.com/esousa97/godistributedkv.git
+cd godistributedkv
+make tidy
 ```
 
-## How to Run
+### Running (Multi-Node)
 
-1. **Unit Tests**:
-   ```bash
-   go test ./internal/storage/... -v
-   ```
+To start a local cluster with 3 nodes, open different terminals and run:
 
-2. **Single Node**:
-   ```bash
-   go run cmd/server/main.go --addr :50051
-   ```
+```bash
+# Node 1 (Suggested initial leader)
+go run cmd/server/main.go --addr :50051 --peers :50052,:50053
 
-3. **Multi-Node Cluster**:
-   Open multiple terminals and start nodes pointing to each other:
-   
-   **Node 1**:
-   ```bash
-   go run cmd/server/main.go --addr :50051 --peers :50052,:50053
-   ```
-   
-   **Node 2**:
-   ```bash
-   go run cmd/server/main.go --addr :50052 --peers :50051,:50053
-   ```
+# Node 2
+go run cmd/server/main.go --addr :50052 --peers :50051,:50053
 
-The server will log health check status and leader election transitions (TERM updates, Leader elected).
+# Node 3
+go run cmd/server/main.go --addr :50053 --peers :50051,:50052
+```
 
-## Implemented Features
+## Makefile Targets
 
-- **Set(key, value)**: Only allowed on the **Leader** node. Propagated to followers via quorum.
-- **Get(key)**: Retrieves the value for a given key from any node.
-- **Delete(key)**: Only allowed on the **Leader** node. Propagated via quorum.
-- **Majority Consensus Replication (Quorum)**: Operations are only committed after at least N/2 + 1 nodes acknowledge the update.
-- **Leader Election**: Automated election using terms and votes when the leader fails.
-- **Leader Redirection**: Followers return the address of the current leader for write operations.
-- **Heartbeats**: Leader maintains authority via periodic heartbeats.
-- **Thread-safety**: Protected via `sync.RWMutex`.
-- **gRPC Reflection**: Enabled to facilitate testing with tools like `grpcurl`.
+| Target         | Description                               |
+| -------------- | ----------------------------------------- |
+| `make build`   | Compiles the server binary to `bin/`      |
+| `make run`     | Runs the server directly via Go           |
+| `make test`    | Executes the unit test suite              |
+| `make tidy`    | Cleans and updates `go.mod` dependencies  |
+| `make protoc`  | Generates gRPC files from `.proto`        |
+| `make clean`   | Removes binaries and temporary logs       |
+
+## Architecture
+
+The project follows **Dependency Inversion** principles and a **Modular Architecture**, separating the core storage from the networking infrastructure.
+
+- `api/proto`: gRPC contract definitions and data services.
+- `cmd/server`: Application entry point and cluster bootstrap.
+- `internal/cluster`: Consensus orchestrator, leader election, and node health.
+- `internal/config`: Typed configuration management.
+- `internal/server`: gRPC handlers for read and write operations.
+- `internal/storage`: Core storage (Thread-safe Map) and persistence (WAL).
+
+## Configuration
+
+| Flag         | Environment Variable | Description                         | Type     | Default         |
+| ------------ | -------------------- | ----------------------------------- | -------- | --------------- |
+| `--addr`     | -                    | Server listening address            | String   | `:50051`        |
+| `--peers`    | -                    | Comma-separated list of peers       | String   | -               |
+| `--wal-path` | -                    | Path to the persistence log file    | String   | `data/kv.log`   |
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+<div align="center">
+
+## Author
+
+**Enoque Sousa**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/enoque-sousa-bb89aa168/)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/ESousa97)
+[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=flat&logo=target&logoColor=white)](https://enoquesousa.vercel.app)
+
+**[⬆ Back to Top](#go-distributed-kv)**
+
+Made with ❤️ by [Enoque Sousa](https://github.com/ESousa97)
+
+**Project Status:** Active Development
+
+</div>
