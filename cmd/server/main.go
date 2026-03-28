@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
 func main() {
 	log.Println("Starting godistributedkv...")
 
@@ -37,8 +38,6 @@ func main() {
 	}
 
 	// Initialize cluster manager.
-...
-
 	clusterMgr := cluster.NewManager(cfg.Addr, cfg.Peers)
 	clusterMgr.Start()
 
