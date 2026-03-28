@@ -6,8 +6,8 @@
 package cluster
 
 import (
-	"crypto/rand"
 	"context"
+	"crypto/rand"
 	"log"
 	"math/big"
 	"sync"
