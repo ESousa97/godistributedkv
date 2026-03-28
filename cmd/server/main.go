@@ -12,18 +12,33 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
-
 func main() {
 	log.Println("Starting godistributedkv...")
 
 	// Load configuration.
 	cfg := config.Load()
-	log.Printf("Config loaded - Addr: %s, Peers: %v", cfg.Addr, cfg.Peers)
+	log.Printf("Config loaded - Addr: %s, Peers: %v, WAL: %s", cfg.Addr, cfg.Peers, cfg.WALPath)
 
-	// Initialize in-memory storage.
-	kvStore := storage.NewStore()
+	// Initialize WAL.
+	wal, err := storage.NewWAL(cfg.WALPath)
+	if err != nil {
+		log.Fatalf("CRITICAL: failed to initialize WAL: %v", err)
+	}
+	defer wal.Close()
+
+	// Initialize in-memory storage with WAL.
+	kvStore := storage.NewStore(wal)
+
+	// Recover state from WAL.
+	if err := kvStore.Recover(); err != nil {
+		log.Printf("WARNING: failed to recover from WAL: %v", err)
+	} else {
+		log.Println("State recovered from WAL successfully")
+	}
 
 	// Initialize cluster manager.
+...
+
 	clusterMgr := cluster.NewManager(cfg.Addr, cfg.Peers)
 	clusterMgr.Start()
 

@@ -50,7 +50,9 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 		}, nil
 	}
 
-	s.store.Set(req.GetKey(), req.GetValue())
+	if err := s.store.Set(req.GetKey(), req.GetValue()); err != nil {
+		return &pb.SetResponse{Success: false}, err
+	}
 	return &pb.SetResponse{
 		Success: true,
 	}, nil
@@ -72,7 +74,9 @@ func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 		}, nil
 	}
 
-	s.store.Delete(req.GetKey())
+	if err := s.store.Delete(req.GetKey()); err != nil {
+		return &pb.DeleteResponse{Success: false}, err
+	}
 	return &pb.DeleteResponse{
 		Success: true,
 	}, nil
@@ -100,10 +104,14 @@ func (s *Server) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.H
 func (s *Server) ReplicateSet(ctx context.Context, req *pb.ReplicateRequest) (*pb.ReplicateResponse, error) {
 	success, term := s.cluster.HandleReplicateSet(req)
 	if success {
+		var err error
 		if req.GetValue() == "" {
-			s.store.Delete(req.GetKey())
+			err = s.store.Delete(req.GetKey())
 		} else {
-			s.store.Set(req.GetKey(), req.GetValue())
+			err = s.store.Set(req.GetKey(), req.GetValue())
+		}
+		if err != nil {
+			return &pb.ReplicateResponse{Term: term, Success: false}, err
 		}
 	}
 	return &pb.ReplicateResponse{
