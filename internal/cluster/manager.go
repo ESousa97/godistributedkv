@@ -1,3 +1,8 @@
+// Package cluster provides cluster management capabilities, including
+// service discovery, leader election, and distributed replication.
+//
+// It implements a Raft-lite consensus mechanism to ensure high availability
+// and data consistency across multiple nodes.
 package cluster
 
 import (
@@ -12,22 +17,31 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// NodeState represents the current role of a node in the cluster.
 type NodeState int
 
 const (
+	// Follower is the default state of a node. It responds to requests from leaders and candidates.
 	Follower NodeState = iota
+	// Candidate represents a node that is currently attempting to become a leader.
 	Candidate
+	// Leader represents the node that is currently authoritative for the cluster.
 	Leader
 )
 
 // Peer represents a remote node in the cluster.
+// It maintains the network address and gRPC client connection.
 type Peer struct {
+	// Addr is the network address (host:port) of the remote peer.
 	Addr   string
+	// Client is the gRPC client for the KeyValue service.
 	Client pb.KeyValueClient
+	// Conn is the underlying gRPC client connection.
 	Conn   *grpc.ClientConn
 }
 
-// Manager manages the cluster peers and leader election.
+// Manager coordinates cluster-wide operations such as leader election and replication.
+// It tracks the state of the local node and its relationship with [Peer] nodes.
 type Manager struct {
 	mu sync.RWMutex
 
@@ -35,7 +49,7 @@ type Manager struct {
 	nodeID string
 	peers  map[string]*Peer
 
-	// Raft-like State
+	// Raft-lite State
 	state       NodeState
 	currentTerm int64
 	votedFor    string
@@ -45,7 +59,7 @@ type Manager struct {
 	electionTimer *time.Timer
 }
 
-// NewManager initializes a new cluster Manager.
+// NewManager initializes and returns a new cluster [Manager].
 func NewManager(nodeID string, peerAddrs []string) *Manager {
 	m := &Manager{
 		nodeID:      nodeID,
@@ -63,7 +77,8 @@ func NewManager(nodeID string, peerAddrs []string) *Manager {
 	return m
 }
 
-// Start initiates the election timer and background processes.
+// Start initiates the election timer and background cluster processes.
+// It should be called after initializing all dependencies.
 func (m *Manager) Start() {
 	m.mu.Lock()
 	m.resetElectionTimer()
@@ -74,11 +89,12 @@ func (m *Manager) resetElectionTimer() {
 	if m.electionTimer != nil {
 		m.electionTimer.Stop()
 	}
-	// Randomized timeout between 150ms and 300ms
+	// Randomized timeout between 150ms and 300ms to reduce split-vote scenarios.
 	timeout := time.Duration(150+rand.Intn(150)) * time.Millisecond
 	m.electionTimer = time.AfterFunc(timeout, m.startElection)
 }
 
+// startElection transitions the node to the [Candidate] state and requests votes from [Peer] nodes.
 func (m *Manager) startElection() {
 	m.mu.Lock()
 	m.state = Candidate
@@ -133,12 +149,13 @@ func (m *Manager) startElection() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Check if still candidate and has majority
+	// Check if still candidate and has reached majority quorum.
 	if m.state == Candidate && votes > (len(m.peers)+1)/2 {
 		m.becomeLeader()
 	}
 }
 
+// becomeLeader transitions the node to the [Leader] state and starts the heartbeat loop.
 func (m *Manager) becomeLeader() {
 	m.state = Leader
 	m.leaderID = m.nodeID
@@ -149,6 +166,7 @@ func (m *Manager) becomeLeader() {
 	go m.heartbeatLoop()
 }
 
+// becomeFollower transitions the node to the [Follower] state for the specified term.
 func (m *Manager) becomeFollower(term int64) {
 	log.Printf("[TERM %d] Node %s becoming Follower (Term update: %d)", m.currentTerm, m.nodeID, term)
 	m.state = Follower
@@ -157,6 +175,7 @@ func (m *Manager) becomeFollower(term int64) {
 	m.resetElectionTimer()
 }
 
+// heartbeatLoop sends periodic heartbeats to all [Peer] nodes to maintain leadership authority.
 func (m *Manager) heartbeatLoop() {
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
@@ -207,8 +226,7 @@ func (m *Manager) ensureClient(peer *Peer) {
 	}
 }
 
-// gRPC Handler Implementations
-
+// HandleRequestVote processes a vote request from a candidate in the cluster.
 func (m *Manager) HandleRequestVote(req *pb.VoteRequest) *pb.VoteResponse {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -230,6 +248,7 @@ func (m *Manager) HandleRequestVote(req *pb.VoteRequest) *pb.VoteResponse {
 	}
 }
 
+// HandleHeartbeat processes a heartbeat from the current cluster leader.
 func (m *Manager) HandleHeartbeat(req *pb.HeartbeatRequest) *pb.HeartbeatResponse {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -253,21 +272,22 @@ func (m *Manager) HandleHeartbeat(req *pb.HeartbeatRequest) *pb.HeartbeatRespons
 	}
 }
 
-// External Queries
-
+// IsLeader returns true if the local node is currently the cluster leader.
 func (m *Manager) IsLeader() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.state == Leader
 }
 
+// GetLeader returns the ID of the current cluster leader, if known.
 func (m *Manager) GetLeader() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.leaderID
 }
 
-// Replicate sends the Set operation to all peers and waits for a quorum.
+// Replicate orchestrates the replication of a Set operation to a quorum of cluster peers.
+// It returns true if the operation reached a majority of nodes.
 func (m *Manager) Replicate(ctx context.Context, key, value string) bool {
 	m.mu.RLock()
 	if m.state != Leader {
@@ -321,6 +341,7 @@ func (m *Manager) Replicate(ctx context.Context, key, value string) bool {
 	return successCount >= majority
 }
 
+// HandleReplicateSet processes a replication request from the cluster leader.
 func (m *Manager) HandleReplicateSet(req *pb.ReplicateRequest) (bool, int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

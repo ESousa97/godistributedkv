@@ -9,20 +9,27 @@ import (
 	"sync"
 )
 
-// LogEntry represents a single operation in the WAL.
+// LogEntry represents a single operation in the Write-Ahead Log.
+// It serializes to JSON for persistence on disk.
 type LogEntry struct {
+	// Key is the unique identifier for the entry.
 	Key      string `json:"key"`
+	// Value is the data associated with the key. Omitted for delete operations.
 	Value    string `json:"value,omitempty"`
+	// IsDelete indicates if this entry represents a key deletion.
 	IsDelete bool   `json:"is_delete"`
 }
 
-// WAL handles sequential log writing and recovery.
+// WAL (Write-Ahead Log) handles sequential log writing and recovery.
+// It provides durability by ensuring all write operations are synced to disk
+// before being applied to the in-memory [Store].
 type WAL struct {
 	mu   sync.Mutex
 	file *os.File
 }
 
-// NewWAL opens or creates a WAL file.
+// NewWAL opens or creates a WAL file at the specified path.
+// It ensures that the parent directory exists before attempting to open the file.
 func NewWAL(path string) (*WAL, error) {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
@@ -40,7 +47,8 @@ func NewWAL(path string) (*WAL, error) {
 	}, nil
 }
 
-// Append adds a new entry to the log and syncs to disk.
+// Append adds a new [LogEntry] to the log and flushes it to disk.
+// It returns an error if the serialization or disk write fails.
 func (w *WAL) Append(key, value string, isDelete bool) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -63,7 +71,9 @@ func (w *WAL) Append(key, value string, isDelete bool) error {
 	return w.file.Sync()
 }
 
-// Recover reads the log and replays it into the provided store.
+// Recover reads the sequential log from disk and replays it into the provided
+// data map. This is typically used during [Store] initialization to restore
+// the previous state.
 func (w *WAL) Recover(data map[string]string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -90,7 +100,7 @@ func (w *WAL) Recover(data map[string]string) error {
 	return scanner.Err()
 }
 
-// Close closes the underlying file.
+// Close closes the underlying WAL file.
 func (w *WAL) Close() error {
 	return w.file.Close()
 }

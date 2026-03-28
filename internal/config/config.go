@@ -1,3 +1,4 @@
+// Package config handles the application configuration via command-line flags.
 package config
 
 import (
@@ -5,14 +6,18 @@ import (
 	"strings"
 )
 
-// Config holds the application configuration.
+// Config holds the application configuration parameters.
 type Config struct {
+	// Addr is the network address (host:port) where the server will listen.
 	Addr    string
+	// Peers is a list of network addresses for other nodes in the cluster.
 	Peers   []string
+	// WALPath is the filesystem path to the Write-Ahead Log file.
 	WALPath string
 }
 
-// Load parses flags and returns the configuration.
+// Load parses command-line flags and returns a populated [Config] instance.
+// It supports flags for address, peer list (comma-separated), and WAL file path.
 func Load() *Config {
 	addr := flag.String("addr", ":50051", "Server listen address")
 	peersStr := flag.String("peers", "", "Comma-separated list of peer addresses")

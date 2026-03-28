@@ -1,3 +1,6 @@
+// Package main provides the entry point for the distributed key-value store server.
+// It coordinates the initialization of storage, WAL persistence, and cluster 
+// management, then starts the gRPC server and enables reflection for debugging.
 package main
 
 import (
