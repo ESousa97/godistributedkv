@@ -5,7 +5,7 @@ import (
 )
 
 func TestStore_SetAndGet(t *testing.T) {
-	s := NewStore()
+	s := NewStore(nil)
 	key := "test-key"
 	value := "test-value"
 
@@ -21,7 +21,7 @@ func TestStore_SetAndGet(t *testing.T) {
 }
 
 func TestStore_GetNotFound(t *testing.T) {
-	s := NewStore()
+	s := NewStore(nil)
 	key := "non-existent"
 
 	_, found := s.Get(key)
@@ -31,7 +31,7 @@ func TestStore_GetNotFound(t *testing.T) {
 }
 
 func TestStore_Delete(t *testing.T) {
-	s := NewStore()
+	s := NewStore(nil)
 	key := "to-delete"
 	value := "some-value"
 
@@ -45,7 +45,7 @@ func TestStore_Delete(t *testing.T) {
 }
 
 func TestStore_ConcurrentAccess(t *testing.T) {
-	s := NewStore()
+	s := NewStore(nil)
 	const iterations = 1000
 
 	// Concurrent writes
